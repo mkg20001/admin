@@ -122,6 +122,7 @@ export const IntrospectedEditGuesser = ({
           {
             id,
             data,
+            previousData: values,
             meta: { hasFileField },
           },
           { returnPromise: true },
