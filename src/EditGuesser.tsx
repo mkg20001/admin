@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { PropsWithChildren, ReactNode } from 'react';
 import PropTypes from 'prop-types';
 import {
@@ -16,6 +16,7 @@ import type { HttpError, RaRecord } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import type { Field, Resource } from '@api-platform/api-doc-parser';
 
+import { useEditController } from 'ra-core/dist/esm/controller/edit/useEditController';
 import InputGuesser from './InputGuesser.js';
 import Introspecter from './Introspecter.js';
 import getIdentifierValue from './getIdentifierValue.js';
@@ -45,7 +46,7 @@ const getOverrideCode = (schema: Resource, fields: Field[]) => {
   return code;
 };
 
-export const IntrospectedEditGuesser = ({
+export const IntrospectedEditGuesser = <RecordType extends RaRecord = any>({
   fields,
   readableFields,
   writableFields,
@@ -94,6 +95,13 @@ export const IntrospectedEditGuesser = ({
     );
   const hasFileField = hasFileFieldElement(inputChildren);
 
+  const controllerProps = useEditController<RecordType>(props);
+  const [previousData, setPreviousData] = useState<Partial<RaRecord>>();
+
+  if (!previousData && controllerProps.record) {
+    setPreviousData(controllerProps.record);
+  }
+
   const save = useCallback(
     async (values: Partial<RaRecord>) => {
       if (id === undefined) {
@@ -122,6 +130,7 @@ export const IntrospectedEditGuesser = ({
           {
             id,
             data,
+            previousData,
             meta: { hasFileField },
           },
           { returnPromise: true },
@@ -135,7 +144,8 @@ export const IntrospectedEditGuesser = ({
             });
             redirect(redirectTo, resource, updatedRecord.id, updatedRecord);
           });
-        success(response, { id, data: response, previousData: values }, {});
+        success(response, { id, data: response, previousData }, {});
+        setPreviousData(undefined);
         return undefined;
       } catch (mutateError) {
         const submissionErrors = schemaAnalyzer.getSubmissionErrors(
@@ -162,7 +172,7 @@ export const IntrospectedEditGuesser = ({
           });
         failure(
           mutateError as string | Error,
-          { id, data: values, previousData: values },
+          { id, data: values, previousData },
           {},
         );
         if (submissionErrors) {
@@ -183,6 +193,7 @@ export const IntrospectedEditGuesser = ({
       schemaAnalyzer,
       transform,
       update,
+      previousData,
     ],
   );
 
@@ -198,7 +209,7 @@ export const IntrospectedEditGuesser = ({
       id={id}
       mutationMode={mutationMode}
       redirect={redirectTo}
-      transform={(data) => data}
+      transform={transform}
       {...props}>
       <FormType
         onSubmit={mutationMode !== 'pessimistic' ? undefined : save}
